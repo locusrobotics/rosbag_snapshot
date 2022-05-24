@@ -34,6 +34,7 @@
 #include <queue>
 #include <string>
 #include <time.h>
+#include <unordered_set>
 #include <vector>
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
@@ -99,6 +100,19 @@ MessageQueue::MessageQueue(SnapshotterTopicOptions const& options) : options_(op
 {
 }
 
+std::string SnapshotMessage::getCallerId() const
+{
+  std::string callerid = "";
+  ros::M_string::const_iterator it = connection_header->find("callerid");
+
+  if (it != connection_header->end())
+  {
+    callerid = it->second;
+  }
+
+  return callerid;
+}
+
 void MessageQueue::setSubscriber(shared_ptr<ros::Subscriber> sub)
 {
   sub_ = sub;
@@ -123,13 +137,33 @@ void MessageQueue::clear()
 
 void MessageQueue::_clear()
 {
-  if (_is_latched()) {
-    // Restore the latest message for latched topics
-    SnapshotMessage latest = _pop_back();
+  if (_is_latched())
+  {
+    // Restore the newest message from each unique publisher of latched topics
+    std::unordered_set<std::string> callers = {};
+    queue_t saved;
+
+    for (auto m = queue_.rbegin(); m != queue_.rend(); m++)
+    {
+      std::string callerid = m->getCallerId();
+      if (callers.find(callerid) == callers.end())
+      {
+          saved.push_back(*m);
+          callers.insert(callerid);
+      }
+    }
+
     queue_.clear();
     size_ = 0;
-    _push(latest);
-  } else {
+
+    // Push saved messages into queue from oldest to newest
+    for (auto m = saved.rbegin(); m != saved.rend(); m++)
+    {
+      _push(*m);
+    }
+  }
+  else
+  {
     queue_.clear();
     size_ = 0;
   }
@@ -143,7 +177,7 @@ ros::Duration MessageQueue::duration() const
   return queue_.back().time - queue_.front().time;
 }
 
-bool MessageQueue::preparePush(int32_t size, ros::Time const& time)
+bool MessageQueue::preparePush(int32_t size, ros::Time const& time, std::string const& callerid)
 {
   // If new message is older than back of queue, time has gone backwards and buffer must be cleared
   if (!queue_.empty() && time < queue_.back().time)
@@ -161,9 +195,14 @@ bool MessageQueue::preparePush(int32_t size, ros::Time const& time)
     while (queue_.size() != 0 && size_ + size > options_.memory_limit_)
       _pop();
 
-  // If duration limit is encforced, remove elements from front of queue until duration limit would be met once message
+  // If topic is latched, ignore duration limit but remove all previous messages from the specified callerid
+  if (_is_latched())
+  {
+    _remove_callerid(callerid);
+  }
+  // If duration limit is enforced, remove elements from front of queue until duration limit would be met once message
   // is added
-  if (options_.duration_limit_ > SnapshotterTopicOptions::NO_DURATION_LIMIT && queue_.size() != 0)
+  else if (options_.duration_limit_ > SnapshotterTopicOptions::NO_DURATION_LIMIT && queue_.size() != 0)
   {
     ros::Duration dt = time - queue_.front().time;
     while (dt > options_.duration_limit_)
@@ -219,7 +258,7 @@ void MessageQueue::_push(SnapshotMessage const& _out)
 {
   int32_t size = _out.msg->size();
   // If message cannot be added without violating limits, it must be dropped
-  if (!preparePush(size, _out.time))
+  if (!preparePush(size, _out.time, _out.getCallerId()))
     return;
   queue_.push_back(_out);
   // Add size of new message to running count to maintain correctness
@@ -264,19 +303,37 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
   return range_t(begin, end);
 }
 
-bool MessageQueue::_is_latched() {
+bool MessageQueue::_is_latched()
+{
   bool latched = false;
 
-  if (!queue_.empty()) {
+  if (!queue_.empty())
+  {
     SnapshotMessage latest = queue_.back();
 
     ros::M_string::const_iterator it = latest.connection_header->find("latching");
-    if ((it != latest.connection_header->end()) && (it->second == "1")) { 
+    if ((it != latest.connection_header->end()) && (it->second == "1"))
+    {
       latched = true;
     }
   }
 
   return latched;
+}
+
+void MessageQueue::_remove_callerid(std::string callerid)
+{
+  for (auto it = queue_.begin(); it != queue_.end(); )
+  {
+    if (it->getCallerId() == callerid)
+    {
+      it = queue_.erase(it);
+    }
+    else
+    {
+      ++it;
+    }
+  }
 }
 
 const int Snapshotter::QUEUE_SIZE = 10;
@@ -394,8 +451,9 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
   try
   {
     ros::Time start = req.start_time;
-    
-    if (start == ros::Time(0)) {
+
+    if (start == ros::Time(0))
+    {
       start = now - message_queue.options_.duration_limit_;
     }
 
@@ -403,7 +461,8 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
     {
       SnapshotMessage msg = *msg_it;
       // Latched messages can have old timestamps so set the timestamp to the bag start time in this case
-      if (msg.time < start) {
+      if (msg.time < start)
+      {
         msg.time = start;
       }
       bag.write(topic, msg.time, msg.msg, msg.connection_header);

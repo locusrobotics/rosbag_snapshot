@@ -127,6 +127,9 @@ struct ROSBAG_DECL SnapshotMessage
   boost::shared_ptr<ros::M_string> connection_header;
   // ROS time when messaged arrived (does not use header stamp)
   ros::Time time;
+
+  // Get the callid field from the message connection header. Returns empty string if callerid is not found
+  std::string getCallerId() const;
 };
 
 /* Stores a queue of buffered messages for a single topic ensuring
@@ -183,9 +186,11 @@ private:
   void _clear();
   // Truncate front of queue as needed to fit a new message of specified size and time. Returns False if this is
   // impossible.
-  bool preparePush(int32_t size, ros::Time const& time);
+  bool preparePush(int32_t size, ros::Time const& time, std::string const& callerid);
   // Returns true if queue messages are latched, false if not latched or queue is empty. Does not obtain lock
   bool _is_latched();
+  // Removes all messages from the specified callerid
+  void _remove_callerid(std::string callerid);
 };
 
 /* Snapshotter node. Maintains a circular buffer of the most recent messages from configured topics
