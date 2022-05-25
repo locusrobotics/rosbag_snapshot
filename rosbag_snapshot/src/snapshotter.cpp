@@ -137,7 +137,7 @@ void MessageQueue::clear()
 
 void MessageQueue::_clear()
 {
-  if (_is_latched())
+  if (isLatched())
   {
     // Restore the newest message from each unique publisher of latched topics
     std::unordered_set<std::string> callers = {};
@@ -148,8 +148,8 @@ void MessageQueue::_clear()
       std::string callerid = m->getCallerId();
       if (callers.find(callerid) == callers.end())
       {
-          saved.push_back(*m);
-          callers.insert(callerid);
+        saved.push_back(*m);
+        callers.insert(callerid);
       }
     }
 
@@ -177,7 +177,7 @@ ros::Duration MessageQueue::duration() const
   return queue_.back().time - queue_.front().time;
 }
 
-bool MessageQueue::preparePush(int32_t size, ros::Time const& time, std::string const& callerid)
+bool MessageQueue::preparePush(int32_t size, ros::Time const& time, const std::string& callerid)
 {
   // If new message is older than back of queue, time has gone backwards and buffer must be cleared
   if (!queue_.empty() && time < queue_.back().time)
@@ -196,9 +196,9 @@ bool MessageQueue::preparePush(int32_t size, ros::Time const& time, std::string 
       _pop();
 
   // If topic is latched, ignore duration limit but remove all previous messages from the specified callerid
-  if (_is_latched())
+  if (isLatched())
   {
-    _remove_callerid(callerid);
+    removeCallerid(callerid);
   }
   // If duration limit is enforced, remove elements from front of queue until duration limit would be met once message
   // is added
@@ -238,10 +238,10 @@ SnapshotMessage MessageQueue::pop()
   return _pop();
 }
 
-SnapshotMessage MessageQueue::pop_back()
+SnapshotMessage MessageQueue::popBack()
 {
   boost::mutex::scoped_lock l(lock);
-  return _pop_back();
+  return _popBack();
 }
 
 int64_t MessageQueue::getMessageSize(SnapshotMessage const& snapshot_msg) const
@@ -274,7 +274,7 @@ SnapshotMessage MessageQueue::_pop()
   return tmp;
 }
 
-SnapshotMessage MessageQueue::_pop_back()
+SnapshotMessage MessageQueue::_popBack()
 {
   SnapshotMessage tmp = queue_.back();
   queue_.pop_back();
@@ -290,7 +290,7 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
 
   // Increment / Decrement iterators until time contraints are met
   // Don't increment the begin iterator for latched messages since their timestamps can be old
-  if (!start.isZero() && !_is_latched())
+  if (!start.isZero() && !isLatched())
   {
     while (begin != end && (*begin).time < start)
       ++begin;
@@ -303,7 +303,7 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
   return range_t(begin, end);
 }
 
-bool MessageQueue::_is_latched()
+bool MessageQueue::isLatched()
 {
   bool latched = false;
 
@@ -321,7 +321,7 @@ bool MessageQueue::_is_latched()
   return latched;
 }
 
-void MessageQueue::_remove_callerid(std::string callerid)
+void MessageQueue::removeCallerid(const std::string& callerid)
 {
   for (auto it = queue_.begin(); it != queue_.end(); )
   {

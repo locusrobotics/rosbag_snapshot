@@ -159,7 +159,7 @@ public:
   // Removes the message at the front of the queue (oldest) and returns it
   SnapshotMessage pop();
   // Removes the message at the back of the queue (newest) and returns it
-  SnapshotMessage pop_back();
+  SnapshotMessage popBack();
   // Returns the time difference between back and front of queue, or 0 if size <= 1
   ros::Duration duration() const;
   // Clear internal buffer
@@ -180,17 +180,17 @@ private:
   void _push(SnapshotMessage const& msg);
   // Internal pop which does not obtain lock
   SnapshotMessage _pop();
-  // Internal pop_back which does not obtain lock
-  SnapshotMessage _pop_back();
+  // Internal popBack which does not obtain lock
+  SnapshotMessage _popBack();
   // Internal clear which does not obtain lock
   void _clear();
   // Truncate front of queue as needed to fit a new message of specified size and time. Returns False if this is
   // impossible.
-  bool preparePush(int32_t size, ros::Time const& time, std::string const& callerid);
+  bool preparePush(int32_t size, ros::Time const& time, const std::string& callerid);
   // Returns true if queue messages are latched, false if not latched or queue is empty. Does not obtain lock
-  bool _is_latched();
+  bool isLatched();
   // Removes all messages from the specified callerid
-  void _remove_callerid(std::string callerid);
+  void removeCallerid(const std::string& callerid);
 };
 
 /* Snapshotter node. Maintains a circular buffer of the most recent messages from configured topics
