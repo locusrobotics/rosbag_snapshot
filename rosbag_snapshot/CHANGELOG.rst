@@ -2,6 +2,11 @@
 Changelog for package rosbag_snapshot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* RST-5409 Retain latched messages from each unique publisher (#2)
+* Contributors: nleblanc-lr
+
 1.0.4 (2022-04-11)
 ------------------
 * Update _is_latched comment to specify that lock is not obtained
