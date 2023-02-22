@@ -2,8 +2,8 @@
 Changelog for package rosbag_snapshot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.0 (2023-02-22)
+------------------
 * RST-5409 Retain latched messages from each unique publisher (#2)
 * Contributors: nleblanc-lr
 
