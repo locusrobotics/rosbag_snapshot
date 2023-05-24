@@ -195,14 +195,9 @@ bool MessageQueue::preparePush(int32_t size, ros::Time const& time, const std::s
     while (queue_.size() != 0 && size_ + size > options_.memory_limit_)
       _pop();
 
-  // If topic is latched, ignore duration limit but remove all previous messages from the specified callerid
-  if (isLatched())
-  {
-    removeCallerid(callerid);
-  }
   // If duration limit is enforced, remove elements from front of queue until duration limit would be met once message
   // is added
-  else if (options_.duration_limit_ > SnapshotterTopicOptions::NO_DURATION_LIMIT && queue_.size() != 0)
+  if (options_.duration_limit_ > SnapshotterTopicOptions::NO_DURATION_LIMIT && queue_.size() != 0)
   {
     ros::Duration dt = time - queue_.front().time;
     while (dt > options_.duration_limit_)
@@ -319,21 +314,6 @@ bool MessageQueue::isLatched()
   }
 
   return latched;
-}
-
-void MessageQueue::removeCallerid(const std::string& callerid)
-{
-  for (auto it = queue_.begin(); it != queue_.end(); )
-  {
-    if (it->getCallerId() == callerid)
-    {
-      it = queue_.erase(it);
-    }
-    else
-    {
-      ++it;
-    }
-  }
 }
 
 const int Snapshotter::QUEUE_SIZE = 10;
