@@ -113,6 +113,11 @@ std::string SnapshotMessage::getCallerId() const
   return callerid;
 }
 
+bool SnapshotMessage::is_latched() const
+{
+  return connection_header->find("latching") != connection_header->end();
+}
+
 void MessageQueue::setSubscriber(shared_ptr<ros::Subscriber> sub)
 {
   sub_ = sub;
@@ -137,35 +142,14 @@ void MessageQueue::clear()
 
 void MessageQueue::_clear()
 {
-  if (isLatched())
+  queue_.clear();
+  size_ = 0;
+
+  // Restore the latest message from each unique publisher of latched topics
+  for (auto msg : latest_latched)
   {
-    // Restore the newest message from each unique publisher of latched topics
-    std::unordered_set<std::string> callers = {};
-    queue_t saved;
-
-    for (auto m = queue_.rbegin(); m != queue_.rend(); m++)
-    {
-      std::string callerid = m->getCallerId();
-      if (callers.find(callerid) == callers.end())
-      {
-        saved.push_back(*m);
-        callers.insert(callerid);
-      }
-    }
-
-    queue_.clear();
-    size_ = 0;
-
-    // Push saved messages into queue from oldest to newest
-    for (auto m = saved.rbegin(); m != saved.rend(); m++)
-    {
-      _push(*m);
-    }
-  }
-  else
-  {
-    queue_.clear();
-    size_ = 0;
+    // Any message here has already passed checks so push straight to the queue
+    queue_.push_back(msg.second);
   }
 }
 
@@ -216,6 +200,7 @@ bool MessageQueue::preparePush(int32_t size, ros::Time const& time, const std::s
 
   return true;
 }
+
 void MessageQueue::push(SnapshotMessage const& _out)
 {
   boost::mutex::scoped_try_lock l(lock);
@@ -255,6 +240,23 @@ void MessageQueue::_push(SnapshotMessage const& _out)
   // If message cannot be added without violating limits, it must be dropped
   if (!preparePush(size, _out.time, _out.getCallerId()))
     return;
+
+  std::string callerId = _out.getCallerId();
+  // Save the latest from each publisher on a latched topic
+  if (_out.is_latched())
+  {
+    auto it = latest_latched.find(callerId);
+
+    if (it != latest_latched.end())
+    {
+      it->second = _out;
+    }
+    else
+    {
+      latest_latched.insert(std::make_pair(callerId, _out));
+    }
+  }
+
   queue_.push_back(_out);
   // Add size of new message to running count to maintain correctness
   size_ += getMessageSize(_out);
@@ -285,7 +287,7 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
 
   // Increment / Decrement iterators until time contraints are met
   // Don't increment the begin iterator for latched messages since their timestamps can be old
-  if (!start.isZero() && !isLatched())
+  if (!start.isZero() && !is_latched())
   {
     while (begin != end && (*begin).time < start)
       ++begin;
@@ -298,22 +300,24 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
   return range_t(begin, end);
 }
 
-bool MessageQueue::isLatched()
+bool MessageQueue::is_latched()
 {
-  bool latched = false;
+  // bool latched = false;
 
-  if (!queue_.empty())
-  {
-    SnapshotMessage latest = queue_.back();
+  // if (!queue_.empty())
+  // {
+  //   SnapshotMessage latest = queue_.back();
 
-    ros::M_string::const_iterator it = latest.connection_header->find("latching");
-    if ((it != latest.connection_header->end()) && (it->second == "1"))
-    {
-      latched = true;
-    }
-  }
+  //   ros::M_string::const_iterator it = latest.connection_header->find("latching");
+  //   if ((it != latest.connection_header->end()) && (it->second == "1"))
+  //   {
+  //     latched = true;
+  //   }
+  // }
 
-  return latched;
+  // return latched;
+
+  return !latest_latched.empty();
 }
 
 const int Snapshotter::QUEUE_SIZE = 10;
@@ -431,12 +435,21 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
   try
   {
     ros::Time start = req.start_time;
+    bool latched = message_queue.is_latched();
 
     if (start == ros::Time(0))
     {
-      start = now - message_queue.options_.duration_limit_;
+      if (latched)
+      {
+        start = message_queue.queue_.front().time;
+      }
+      else
+      {
+        start = now - message_queue.options_.duration_limit_;
+      }
     }
 
+    std::vector<std::string> callers;
     for (MessageQueue::range_t::first_type msg_it = range.first; msg_it != range.second; ++msg_it)
     {
       SnapshotMessage msg = *msg_it;
@@ -446,6 +459,31 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
         msg.time = start;
       }
       bag.write(topic, msg.time, msg.msg, msg.connection_header);
+
+      // Keep a list of publishers included in this bag for latched topics
+      if (latched)
+      {
+        std::string caller = msg.getCallerId();
+
+        if (std::find(callers.begin(), callers.end(), caller) == callers.end())
+        {
+          callers.push_back(caller);
+        }
+      }
+    }
+
+    if (latched)
+    {
+      for (auto it = message_queue.latest_latched.begin(); it != message_queue.latest_latched.end(); ++it)
+      {
+        // If there are any publishers that are not included in this bag, add the latest message from the publisher
+        if (std::find(callers.begin(), callers.end(), it->first) == callers.end())
+        {
+          // Latched messages can have old timestamps so set the timestamp to the bag start time in this case
+          it->second.time = start;
+          bag.write(topic, it->second.time, it->second.msg, it->second.connection_header);
+        }
+      }
     }
   }
   catch (rosbag::BagException const& err)
