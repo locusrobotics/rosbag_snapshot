@@ -302,21 +302,6 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
 
 bool MessageQueue::is_latched()
 {
-  // bool latched = false;
-
-  // if (!queue_.empty())
-  // {
-  //   SnapshotMessage latest = queue_.back();
-
-  //   ros::M_string::const_iterator it = latest.connection_header->find("latching");
-  //   if ((it != latest.connection_header->end()) && (it->second == "1"))
-  //   {
-  //     latched = true;
-  //   }
-  // }
-
-  // return latched;
-
   return !latest_latched.empty();
 }
 
@@ -476,7 +461,7 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
     {
       for (auto it = message_queue.latest_latched.begin(); it != message_queue.latest_latched.end(); ++it)
       {
-        // If there are any publishers that are not included in this bag, add the latest message from the publisher
+        // If any known latched publishers are not included in this bag, add the latest message from them
         if (std::find(callers.begin(), callers.end(), it->first) == callers.end())
         {
           // Latched messages can have old timestamps so set the timestamp to the bag start time in this case
