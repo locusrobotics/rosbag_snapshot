@@ -113,7 +113,7 @@ std::string SnapshotMessage::getCallerId() const
   return callerid;
 }
 
-bool SnapshotMessage::is_latched() const
+bool SnapshotMessage::isLatched() const
 {
   return connection_header->find("latching") != connection_header->end();
 }
@@ -243,7 +243,7 @@ void MessageQueue::_push(SnapshotMessage const& _out)
 
   std::string callerId = _out.getCallerId();
   // Save the latest from each publisher on a latched topic
-  if (_out.is_latched())
+  if (_out.isLatched())
   {
     auto it = latest_latched.find(callerId);
 
@@ -287,7 +287,7 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
 
   // Increment / Decrement iterators until time contraints are met
   // Don't increment the begin iterator for latched messages since their timestamps can be old
-  if (!start.isZero() && !is_latched())
+  if (!start.isZero() && !isLatched())
   {
     while (begin != end && (*begin).time < start)
       ++begin;
@@ -300,7 +300,7 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
   return range_t(begin, end);
 }
 
-bool MessageQueue::is_latched()
+bool MessageQueue::isLatched()
 {
   return !latest_latched.empty();
 }
@@ -420,7 +420,7 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
   try
   {
     ros::Time start = req.start_time;
-    bool latched = message_queue.is_latched();
+    bool latched = message_queue.isLatched();
 
     if (start == ros::Time(0))
     {
