@@ -130,6 +130,8 @@ struct ROSBAG_DECL SnapshotMessage
 
   // Get the callid field from the message connection header. Returns empty string if callerid is not found
   std::string getCallerId() const;
+  // Return true if this message is from a latched topic
+  bool isLatched() const;
 };
 
 /* Stores a queue of buffered messages for a single topic ensuring
@@ -174,6 +176,8 @@ public:
 
   // Return the total message size including the meta-information
   int64_t getMessageSize(SnapshotMessage const& msg) const;
+  // Latest messages from each publisher on a latched topic
+  std::map<std::string, SnapshotMessage> latest_latched;
 
 private:
   // Internal push whitch does not obtain lock
@@ -187,7 +191,7 @@ private:
   // Truncate front of queue as needed to fit a new message of specified size and time. Returns False if this is
   // impossible.
   bool preparePush(int32_t size, ros::Time const& time, const std::string& callerid);
-  // Returns true if queue messages are latched, false if not latched or queue is empty. Does not obtain lock
+  // Returns true if queue contains latched messages, false if not or queue is empty. Does not obtain lock
   bool isLatched();
   // Removes all messages from the specified callerid
   void removeCallerid(const std::string& callerid);
