@@ -2,6 +2,11 @@
 Changelog for package rosbag_snapshot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* RST-7378 Buffer Additional Latched Messages (`#3 <https://github.com/locusrobotics/rosbag_snapshot/issues/3>`_) (`#4 <https://github.com/locusrobotics/rosbag_snapshot/issues/4>`_)
+* Contributors: nleblanc-lr
+
 1.1.0 (2023-02-22)
 ------------------
 * RST-5409 Retain latched messages from each unique publisher (#2)
