@@ -473,6 +473,8 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
 bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
                                    rosbag_snapshot_msgs::TriggerSnapshot::Response& res)
 {
+  ROS_WARN_STREAM("received trigger request with start_time " << req.start_time);
+
   if (!postfixFilename(req.filename))
   {
     res.success = false;
