@@ -421,12 +421,10 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
   {
     ros::Time start = req.start_time;
     bool latched = message_queue.isLatched();
-    ROS_WARN_STREAM("Bagging messages for topic " << topic);
 
     if (start == ros::Time(0))
     {
       start = now - message_queue.options_.duration_limit_;
-      ROS_WARN_STREAM("\tSet start time to " << start);
     }
 
     bool logged_timestamp_update = false;
@@ -440,7 +438,6 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
       {
         if (!logged_timestamp_update)
         {
-          ROS_WARN_STREAM("\tUpdating old timestamp " << msg.time);
           logged_timestamp_update = true;
         }
         msg.time = start;
@@ -466,6 +463,12 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
         // If any known latched publishers are not included in this bag, add the latest message from them
         if (std::find(callers.begin(), callers.end(), it->first) == callers.end())
         {
+          // Latched messages can have old timestamps so set the timestamp to the bag start time in this case
+          if (it->second.time < start)
+          {
+            it->second.time = start;
+          }
+
           bag.write(topic, it->second.time, it->second.msg, it->second.connection_header);
         }
       }
@@ -482,8 +485,6 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
 bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
                                    rosbag_snapshot_msgs::TriggerSnapshot::Response& res)
 {
-  ROS_WARN_STREAM("received trigger request with start_time " << req.start_time);
-
   if (!postfixFilename(req.filename))
   {
     res.success = false;
