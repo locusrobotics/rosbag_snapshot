@@ -421,14 +421,15 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
   {
     ros::Time start = req.start_time;
     bool latched = message_queue.isLatched();
-    // ROS_WARN_STREAM("Bagging messages for topic " << message_queue.)
+    ROS_WARN_STREAM("Bagging messages for topic " << topic);
 
     if (start == ros::Time(0))
     {
       start = now - message_queue.options_.duration_limit_;
+      ROS_WARN_STREAM("\tSet start time to " << start);
     }
 
-    ROS_WARN_STREAM("Set start time to " << start);
+    bool logged_timestamp_update = false;
 
     std::vector<std::string> callers;
     for (MessageQueue::range_t::first_type msg_it = range.first; msg_it != range.second; ++msg_it)
@@ -437,7 +438,11 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
       // Latched messages can have old timestamps so set the timestamp to the bag start time in this case
       if (msg.time < start)
       {
-        ROS_WARN_STREAM("Updating old timestamp " << msg.time);
+        if (!logged_timestamp_update)
+        {
+          ROS_WARN_STREAM("\tUpdating old timestamp " << msg.time);
+          logged_timestamp_update = true;
+        }
         msg.time = start;
       }
       bag.write(topic, msg.time, msg.msg, msg.connection_header);
