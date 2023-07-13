@@ -427,8 +427,6 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
       start = now - message_queue.options_.duration_limit_;
     }
 
-    bool logged_timestamp_update = false;
-
     std::vector<std::string> callers;
     for (MessageQueue::range_t::first_type msg_it = range.first; msg_it != range.second; ++msg_it)
     {
@@ -436,10 +434,6 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
       // Latched messages can have old timestamps so set the timestamp to the bag start time in this case
       if (msg.time < start)
       {
-        if (!logged_timestamp_update)
-        {
-          logged_timestamp_update = true;
-        }
         msg.time = start;
       }
       bag.write(topic, msg.time, msg.msg, msg.connection_header);
