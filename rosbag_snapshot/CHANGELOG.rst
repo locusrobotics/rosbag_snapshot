@@ -2,6 +2,11 @@
 Changelog for package rosbag_snapshot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* RST-7860 Update Old Timestamps (`#5 <https://github.com/locusrobotics/rosbag_snapshot/issues/5>`_)
+* Contributors: nleblanc-lr
+
 1.1.1 (2023-06-19)
 ------------------
 * RST-7378 Buffer Additional Latched Messages (`#3 <https://github.com/locusrobotics/rosbag_snapshot/issues/3>`_) (`#4 <https://github.com/locusrobotics/rosbag_snapshot/issues/4>`_)
