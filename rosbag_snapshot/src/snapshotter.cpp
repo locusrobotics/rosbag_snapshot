@@ -422,16 +422,9 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
     ros::Time start = req.start_time;
     bool latched = message_queue.isLatched();
 
-    if (start == ros::Time(0))
+    if (start.is_zero())
     {
-      if (latched)
-      {
-        start = message_queue.queue_.front().time;
-      }
-      else
-      {
-        start = now - message_queue.options_.duration_limit_;
-      }
+      start = now - message_queue.options_.duration_limit_;
     }
 
     std::vector<std::string> callers;
@@ -465,7 +458,11 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
         if (std::find(callers.begin(), callers.end(), it->first) == callers.end())
         {
           // Latched messages can have old timestamps so set the timestamp to the bag start time in this case
-          it->second.time = start;
+          if (it->second.time < start)
+          {
+            it->second.time = start;
+          }
+
           bag.write(topic, it->second.time, it->second.msg, it->second.connection_header);
         }
       }
