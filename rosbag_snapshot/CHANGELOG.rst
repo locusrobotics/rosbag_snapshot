@@ -2,8 +2,8 @@
 Changelog for package rosbag_snapshot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.2 (2023-07-14)
+------------------
 * RST-7860 Update Old Timestamps (`#5 <https://github.com/locusrobotics/rosbag_snapshot/issues/5>`_)
 * Contributors: nleblanc-lr
 
