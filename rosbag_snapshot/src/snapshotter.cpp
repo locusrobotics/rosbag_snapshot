@@ -422,7 +422,7 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
     ros::Time start = req.start_time;
     bool latched = message_queue.isLatched();
 
-    if (start == ros::Time(0))
+    if (start.is_zero())
     {
       start = now - message_queue.options_.duration_limit_;
     }
