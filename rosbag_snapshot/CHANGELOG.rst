@@ -7,8 +7,8 @@ Changelog for package rosbag_snapshot
 * RST-5409 Retain latched messages from each unique publisher (#2)
 * Contributors: nleblanc-lr
 
-Forthcoming
------------
+1.2.0 (2023-09-25)
+------------------
 * RST-7860 Update Old Timestamps (#5)
 * RST-7378 Buffer Additional Latched Messages (#3)
 * 1.1.0
