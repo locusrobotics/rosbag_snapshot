@@ -178,6 +178,10 @@ public:
   int64_t getMessageSize(SnapshotMessage const& msg) const;
   // Latest messages from each publisher on a latched topic
   std::map<std::string, SnapshotMessage> latest_latched;
+  // Returns the time of the oldest message in the queue, or now if size < 1
+  ros::Time start() const;
+  // Returns the time of the newest message in the queue, or 0 if size < 1
+  ros::Time end() const;
 
 private:
   // Internal push whitch does not obtain lock
@@ -192,7 +196,7 @@ private:
   // impossible.
   bool preparePush(int32_t size, ros::Time const& time, const std::string& callerid);
   // Returns true if queue contains latched messages, false if not or queue is empty. Does not obtain lock
-  bool isLatched();
+  bool isLatched() const;
   // Removes all messages from the specified callerid
   void removeCallerid(const std::string& callerid);
 };
@@ -261,6 +265,11 @@ private:
   bool writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, std::string const& topic,
                   rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
                   rosbag_snapshot_msgs::TriggerSnapshot::Response& res);
+  ros::Duration longestTopicDuration();
+  // Returns the time of the oldest message in the message buffers
+  ros::Time start() const;
+  // Returns the time of the newest message in the message buffers
+  ros::Time end() const;
 };
 
 // Configuration for SnapshotterClient

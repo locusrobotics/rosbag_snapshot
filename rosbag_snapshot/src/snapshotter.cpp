@@ -300,9 +300,45 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
   return range_t(begin, end);
 }
 
-bool MessageQueue::isLatched()
+bool MessageQueue::isLatched() const
 {
   return !latest_latched.empty();
+}
+
+ros::Time MessageQueue::start() const
+{
+  ros::Time now = ros::Time::now();
+  ros::Time start = queue_.front().time;
+
+  if (queue_.empty())
+  {
+    return now;
+  }
+  else if (isLatched()) {
+    // Latched topics can have timestamps before the duration limit that are modified to fall within the duration
+    // upon writing to a bag, so set the start to the beginning of the duration in these cases
+    if (now - start > options_.duration_limit_) {
+      return now - options_.duration_limit_;
+    } else {
+      return start;
+    }
+  }
+  else
+  {
+    return start;
+  }
+}
+
+ros::Time MessageQueue::end() const
+{
+  if (queue_.empty())
+  {
+    return ros::Time(0);
+  }
+  else
+  {
+    return queue_.back().time;
+  }
 }
 
 const int Snapshotter::QUEUE_SIZE = 10;
@@ -348,10 +384,13 @@ bool Snapshotter::postfixFilename(string& file)
 string Snapshotter::timeAsStr()
 {
   std::stringstream msg;
-  const boost::posix_time::ptime now = boost::posix_time::second_clock::local_time();
-  boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S");
+  const boost::posix_time::ptime buffer_start = start().toBoost();
+  const boost::posix_time::ptime buffer_end = end().toBoost();
+  boost::posix_time::time_duration duration = buffer_end - buffer_start;
+  boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S.%f");
   msg.imbue(std::locale(msg.getloc(), f));
-  msg << now;
+  msg << buffer_start;
+  msg << "_" << std::fixed << std::setprecision(3) << float(duration.total_milliseconds() / 1000);
   return msg.str();
 }
 
@@ -701,6 +740,48 @@ int Snapshotter::run()
   ros::MultiThreadedSpinner spinner(4);  // Use 4 threads
   spinner.spin();                        // spin() will not return until the node has been shutdown
   return 0;
+}
+
+ros::Duration Snapshotter::longestTopicDuration() {
+  ros::Duration longest = ros::Duration(0);
+
+  for (const auto& b : buffers_) {
+    ros::Duration duration = b.second.get()->duration();
+    if (duration > longest) longest = duration;
+  }
+
+  return longest;
+}
+
+ros::Time Snapshotter::start() const
+{
+  ros::Time oldest = ros::Time::now();
+
+  for (const auto& b : buffers_) {
+    ros::Time start = b.second.get()->start();
+    if (start < oldest)
+    {
+      oldest = start;
+    }
+  }
+
+  return oldest;
+}
+
+ros::Time Snapshotter::end() const
+{
+  ros::Time newest = ros::Time(0);
+
+  for (const auto& b : buffers_) {
+    ros::Time end = b.second.get()->end();
+
+    if (end > newest)
+    {
+      newest = end;
+    }
+  }
+
+  return newest;
 }
 
 SnapshotterClient::SnapshotterClient()
