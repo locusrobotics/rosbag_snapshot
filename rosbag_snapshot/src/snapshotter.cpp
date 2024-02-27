@@ -390,7 +390,7 @@ string Snapshotter::timeAsStr()
   boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S.%f");
   msg.imbue(std::locale(msg.getloc(), f));
   msg << buffer_start;
-  msg << "_" << std::fixed << std::setprecision(3) << float(duration.total_milliseconds() / 1000);
+  msg << "_" << std::fixed << std::setprecision(3) << float(duration.total_milliseconds()) / 1000;
   return msg.str();
 }
 
