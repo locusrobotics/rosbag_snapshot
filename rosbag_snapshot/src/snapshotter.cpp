@@ -389,8 +389,19 @@ string Snapshotter::timeAsStr()
   boost::posix_time::time_duration duration = buffer_end - buffer_start;
   boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S.%f");
   msg.imbue(std::locale(msg.getloc(), f));
-  msg << buffer_start;
-  msg << "_" << std::fixed << std::setprecision(3) << float(duration.total_milliseconds()) / 1000;
+
+  if (options_.use_start_time_)
+  {
+    msg << buffer_start;
+  }
+  else{
+    msg << buffer_end;
+  }
+
+  if (options_.use_start_time_) {
+    msg << "_" << std::fixed << std::setprecision(3) << float(duration.total_milliseconds()) / 1000;
+  }
+
   return msg.str();
 }
 
@@ -740,17 +751,6 @@ int Snapshotter::run()
   ros::MultiThreadedSpinner spinner(4);  // Use 4 threads
   spinner.spin();                        // spin() will not return until the node has been shutdown
   return 0;
-}
-
-ros::Duration Snapshotter::longestTopicDuration() {
-  ros::Duration longest = ros::Duration(0);
-
-  for (const auto& b : buffers_) {
-    ros::Duration duration = b.second.get()->duration();
-    if (duration > longest) longest = duration;
-  }
-
-  return longest;
 }
 
 ros::Time Snapshotter::start() const

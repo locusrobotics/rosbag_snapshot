@@ -161,6 +161,8 @@ void appendParamOptions(ros::NodeHandle& nh, SnapshotterOptions& opts)
   if (nh.getParam("default_count_limit", default_count))
     opts.default_count_limit_ = default_count;
   nh.param("record_all_topics", opts.all_topics_, opts.all_topics_);
+  nh.param("use_start_time", opts.use_start_time_, opts.use_start_time_);
+  nh.param("use_duration", opts.use_duration_, opts.use_duration_);
 
   if (!nh.getParam("topics", topics))
   {

@@ -101,6 +101,10 @@ struct ROSBAG_DECL SnapshotterOptions
   ros::Duration status_period_;
   // Flag if all topics should be recorded
   bool all_topics_;
+  // Flag to name snapshot bags with the bag start timestamp
+  bool use_start_time_;
+  // Flag to append the bag duration to snapshot bag names
+  bool use_duration_;
 
   typedef std::map<std::string, SnapshotterTopicOptions> topics_t;
   // Provides list of topics to snapshot and their limit configurations
@@ -265,7 +269,6 @@ private:
   bool writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, std::string const& topic,
                   rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
                   rosbag_snapshot_msgs::TriggerSnapshot::Response& res);
-  ros::Duration longestTopicDuration();
   // Returns the time of the oldest message in the message buffers
   ros::Time start() const;
   // Returns the time of the newest message in the message buffers
