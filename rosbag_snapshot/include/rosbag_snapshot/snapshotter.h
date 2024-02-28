@@ -101,9 +101,9 @@ struct ROSBAG_DECL SnapshotterOptions
   ros::Duration status_period_;
   // Flag if all topics should be recorded
   bool all_topics_;
-  // Flag to name snapshot bags with the bag start timestamp
+  // Flag to name bags with the bag start timestamp
   bool use_start_time_;
-  // Flag to append the bag duration to snapshot bag names
+  // Flag to append the bag duration to bag names
   bool use_duration_;
   // Use decimal precision for the seconds portion of bag name timestamps
   bool use_decimal_precision_;

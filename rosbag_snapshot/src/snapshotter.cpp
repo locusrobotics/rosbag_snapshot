@@ -308,18 +308,22 @@ bool MessageQueue::isLatched() const
 
 ros::Time MessageQueue::start(ros::Time& trigger_time) const
 {
-  ros::Time start = queue_.front().time;
-
   if (queue_.empty())
   {
     return trigger_time;
   }
-  else if (isLatched()) {
+
+  ros::Time start = queue_.front().time;
+
+  if (isLatched()) {
     // Latched topics can have timestamps before the duration limit that are modified to the start of the duration
     // upon writing to a bag, so set the start to the beginning of the duration in these cases
-    if (trigger_time - start > options_.duration_limit_) {
+    if (trigger_time - start > options_.duration_limit_)
+    {
       return trigger_time - options_.duration_limit_;
-    } else {
+    }
+    else
+    {
       return start;
     }
   }
@@ -396,7 +400,8 @@ string Snapshotter::timeAsStr(ros::Time& trigger_time)
     msg << buffer_end;
   }
 
-  if (options_.use_duration_) {
+  if (options_.use_duration_)
+  {
     boost::posix_time::time_duration duration = buffer_end - buffer_start;
     msg << "_" << std::fixed << std::setprecision(3) << float(duration.total_milliseconds()) / 1000;
   }
@@ -758,8 +763,10 @@ ros::Time Snapshotter::start(ros::Time& trigger_time) const
 {
   ros::Time oldest = trigger_time;
 
-  for (const auto& b : buffers_) {
+  for (const auto& b : buffers_)
+  {
     ros::Time start = b.second.get()->start(trigger_time);
+
     if (start < oldest)
     {
       oldest = start;
