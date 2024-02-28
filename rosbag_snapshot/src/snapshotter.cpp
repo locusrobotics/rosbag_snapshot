@@ -306,20 +306,19 @@ bool MessageQueue::isLatched() const
   return !latest_latched.empty();
 }
 
-ros::Time MessageQueue::start() const
+ros::Time MessageQueue::start(ros::Time& trigger_time) const
 {
-  ros::Time now = ros::Time::now();
   ros::Time start = queue_.front().time;
 
   if (queue_.empty())
   {
-    return now;
+    return trigger_time;
   }
   else if (isLatched()) {
-    // Latched topics can have timestamps before the duration limit that are modified to fall within the duration
+    // Latched topics can have timestamps before the duration limit that are modified to the start of the duration
     // upon writing to a bag, so set the start to the beginning of the duration in these cases
-    if (now - start > options_.duration_limit_) {
-      return now - options_.duration_limit_;
+    if (trigger_time - start > options_.duration_limit_) {
+      return trigger_time - options_.duration_limit_;
     } else {
       return start;
     }
@@ -327,18 +326,6 @@ ros::Time MessageQueue::start() const
   else
   {
     return start;
-  }
-}
-
-ros::Time MessageQueue::end() const
-{
-  if (queue_.empty())
-  {
-    return ros::Time(0);
-  }
-  else
-  {
-    return queue_.back().time;
   }
 }
 
@@ -369,27 +356,26 @@ void Snapshotter::fixTopicOptions(SnapshotterTopicOptions& options)
     options.count_limit_ = options_.default_memory_limit_;
 }
 
-bool Snapshotter::postfixFilename(string& file)
+bool Snapshotter::postfixFilename(string& file, ros::Time& trigger_time)
 {
   size_t ind = file.rfind(".bag");
-  // If requested ends in .bag, this is literal name do not append date
+
+  // If requested ends in .bag, this is literal name do not append date 
   if (ind != string::npos && ind == file.size() - 4)
   {
     return true;
   }
+
   // Otherwise treat as prefix and append datetime and extension
-  file += timeAsStr() + ".bag";
+  file += timeAsStr(trigger_time) + ".bag";
   return true;
 }
 
-string Snapshotter::timeAsStr()
+string Snapshotter::timeAsStr(ros::Time& trigger_time)
 {
   std::stringstream msg;
-  const boost::posix_time::ptime buffer_start = start().toBoost();
-  const boost::posix_time::ptime buffer_end = end().toBoost();
-
-  bool thing = true;
-  // boost::posix_time::time_facet* const f;
+  const boost::posix_time::ptime buffer_start = start(trigger_time).toBoost();
+  const boost::posix_time::ptime buffer_end = trigger_time.toBoost();
 
   if (options_.use_decimal_precision_)
   {
@@ -454,10 +440,9 @@ void Snapshotter::subscribe(string const& topic, boost::shared_ptr<MessageQueue>
 
 bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, string const& topic,
                              rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
-                             rosbag_snapshot_msgs::TriggerSnapshot::Response& res)
+                             rosbag_snapshot_msgs::TriggerSnapshot::Response& res,
+                             ros::Time& trigger_time)
 {
-  ros::Time now = ros::Time::now();
-
   // acquire lock for this queue
   boost::mutex::scoped_lock l(message_queue.lock);
 
@@ -487,7 +472,7 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
 
     if (start.is_zero())
     {
-      start = now - message_queue.options_.duration_limit_;
+      start = trigger_time - message_queue.options_.duration_limit_;
     }
 
     std::vector<std::string> callers;
@@ -542,6 +527,8 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
 bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
                                    rosbag_snapshot_msgs::TriggerSnapshot::Response& res)
 {
+  ros::Time trigger_time = ros::Time::now();
+  
   bool recording_prior;  // Store if we were recording prior to write to restore this state after write
   {
     boost::upgrade_lock<boost::upgrade_mutex> read_lock(state_lock_);
@@ -558,7 +545,7 @@ bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Reque
     writing_ = true;
   }
 
-  if (!postfixFilename(req.filename))
+  if (!postfixFilename(req.filename, trigger_time))
   {
     res.success = false;
     res.message = "invalid";
@@ -605,7 +592,7 @@ bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Reque
         continue;
       }
       MessageQueue& message_queue = *(*found).second;
-      if (!writeTopic(bag, message_queue, topic, req, res))
+      if (!writeTopic(bag, message_queue, topic, req, res, trigger_time))
         return true;
     }
   }
@@ -616,7 +603,7 @@ bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Reque
     {
       MessageQueue& message_queue = *(pair.second);
       std::string const& topic = pair.first;
-      if (!writeTopic(bag, message_queue, topic, req, res))
+      if (!writeTopic(bag, message_queue, topic, req, res, trigger_time))
         return true;
     }
   }
@@ -767,12 +754,12 @@ int Snapshotter::run()
   return 0;
 }
 
-ros::Time Snapshotter::start() const
+ros::Time Snapshotter::start(ros::Time& trigger_time) const
 {
-  ros::Time oldest = ros::Time::now();
+  ros::Time oldest = trigger_time;
 
   for (const auto& b : buffers_) {
-    ros::Time start = b.second.get()->start();
+    ros::Time start = b.second.get()->start(trigger_time);
     if (start < oldest)
     {
       oldest = start;
@@ -780,22 +767,6 @@ ros::Time Snapshotter::start() const
   }
 
   return oldest;
-}
-
-ros::Time Snapshotter::end() const
-{
-  ros::Time newest = ros::Time(0);
-
-  for (const auto& b : buffers_) {
-    ros::Time end = b.second.get()->end();
-
-    if (end > newest)
-    {
-      newest = end;
-    }
-  }
-
-  return newest;
 }
 
 SnapshotterClient::SnapshotterClient()
