@@ -69,11 +69,12 @@ SnapshotterTopicOptions::SnapshotterTopicOptions(ros::Duration duration_limit, i
 }
 
 SnapshotterOptions::SnapshotterOptions(ros::Duration default_duration_limit, int32_t default_memory_limit,
-                                     int32_t default_count_limit, ros::Duration status_period)
+                                     int32_t default_count_limit, ros::Duration status_period, bool use_decimal_precicision)
   : default_duration_limit_(default_duration_limit)
   , default_memory_limit_(default_memory_limit)
   , default_count_limit_(default_count_limit)
   , status_period_(status_period)
+  , use_decimal_precision_(use_decimal_precicision)
   , topics_()
 {
 }
@@ -386,9 +387,20 @@ string Snapshotter::timeAsStr()
   std::stringstream msg;
   const boost::posix_time::ptime buffer_start = start().toBoost();
   const boost::posix_time::ptime buffer_end = end().toBoost();
-  boost::posix_time::time_duration duration = buffer_end - buffer_start;
-  boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S.%f");
-  msg.imbue(std::locale(msg.getloc(), f));
+
+  bool thing = true;
+  // boost::posix_time::time_facet* const f;
+
+  if (options_.use_decimal_precision_)
+  {
+    boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S.%f");
+    msg.imbue(std::locale(msg.getloc(), f));
+  }
+  else
+  {
+    boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S");
+    msg.imbue(std::locale(msg.getloc(), f));
+  }
 
   if (options_.use_start_time_)
   {
@@ -398,7 +410,8 @@ string Snapshotter::timeAsStr()
     msg << buffer_end;
   }
 
-  if (options_.use_start_time_) {
+  if (options_.use_duration_) {
+    boost::posix_time::time_duration duration = buffer_end - buffer_start;
     msg << "_" << std::fixed << std::setprecision(3) << float(duration.total_milliseconds()) / 1000;
   }
 
@@ -529,12 +542,6 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
 bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
                                    rosbag_snapshot_msgs::TriggerSnapshot::Response& res)
 {
-  if (!postfixFilename(req.filename))
-  {
-    res.success = false;
-    res.message = "invalid";
-    return true;
-  }
   bool recording_prior;  // Store if we were recording prior to write to restore this state after write
   {
     boost::upgrade_lock<boost::upgrade_mutex> read_lock(state_lock_);
@@ -549,6 +556,13 @@ bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Reque
     if (recording_prior)
       pause();
     writing_ = true;
+  }
+
+  if (!postfixFilename(req.filename))
+  {
+    res.success = false;
+    res.message = "invalid";
+    return true;
   }
 
   // Ensure that state is updated when function exits, regardlesss of branch path / exception events

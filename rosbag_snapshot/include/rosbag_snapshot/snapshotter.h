@@ -105,13 +105,15 @@ struct ROSBAG_DECL SnapshotterOptions
   bool use_start_time_;
   // Flag to append the bag duration to snapshot bag names
   bool use_duration_;
+  // Use decimal precision for the seconds portion of bag name timestamps
+  bool use_decimal_precision_;
 
   typedef std::map<std::string, SnapshotterTopicOptions> topics_t;
   // Provides list of topics to snapshot and their limit configurations
   topics_t topics_;
 
   SnapshotterOptions(ros::Duration default_duration_limit = ros::Duration(30), int32_t default_memory_limit = -1,
-                     int32_t default_count_limit = -1, ros::Duration status_period = ros::Duration(1));
+                     int32_t default_count_limit = -1, ros::Duration status_period = ros::Duration(1), bool use_decimal_precicision = false);
 
   // Add a new topic to the configuration, returns false if the topic was already present
   bool addTopic(std::string const& topic,

@@ -68,6 +68,9 @@ bool parseOptions(po::variables_map& vm, int argc, char** argv)
     ("pause,p", "Stop buffering new messages until resumed or write is triggered")
     ("resume,r", "Resume buffering new messages, writing over older messages as needed")
     ("all,a", "Record all topics")
+    ("use-start-time", "Use the bag start time instead of the trigger time for naming bag files. Default: false")
+    ("use-duration", "Append the bag duration to the end of bag file names. Default: false")
+    ("use-decimal-precision", "Use decimal precision for seconds in the timestamp portion of bag file names. Default: false")
     ("size,s", po::value<double>()->default_value(-1),
      "Maximum memory per topic to use in buffering in MB. Default: no limit")
     ("count,c", po::value<int32_t>()->default_value(-1),
@@ -120,6 +123,9 @@ bool parseVariablesMap(SnapshotterOptions& opts, po::variables_map const& vm)
   opts.default_duration_limit_ = ros::Duration(vm["duration"].as<double>());
   opts.default_count_limit_ =  vm["count"].as<int32_t>();
   opts.all_topics_ = vm.count("all");
+  opts.use_start_time_ = vm.count("use-start-time");
+  opts.use_duration_ = vm.count("use-duration");
+  opts.use_decimal_precision_ =  vm.count("use-decimal-precision");
   return true;
 }
 
@@ -163,6 +169,7 @@ void appendParamOptions(ros::NodeHandle& nh, SnapshotterOptions& opts)
   nh.param("record_all_topics", opts.all_topics_, opts.all_topics_);
   nh.param("use_start_time", opts.use_start_time_, opts.use_start_time_);
   nh.param("use_duration", opts.use_duration_, opts.use_duration_);
+  nh.param("use_decimal_precision", opts.use_decimal_precision_, opts.use_decimal_precision_);
 
   if (!nh.getParam("topics", topics))
   {
