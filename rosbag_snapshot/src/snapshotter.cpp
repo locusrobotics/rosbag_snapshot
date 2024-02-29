@@ -69,12 +69,11 @@ SnapshotterTopicOptions::SnapshotterTopicOptions(ros::Duration duration_limit, i
 }
 
 SnapshotterOptions::SnapshotterOptions(ros::Duration default_duration_limit, int32_t default_memory_limit,
-                                     int32_t default_count_limit, ros::Duration status_period, bool use_decimal_precicision)
+                                     int32_t default_count_limit, ros::Duration status_period)
   : default_duration_limit_(default_duration_limit)
   , default_memory_limit_(default_memory_limit)
   , default_count_limit_(default_count_limit)
   , status_period_(status_period)
-  , use_decimal_precision_(use_decimal_precicision)
   , topics_()
 {
 }

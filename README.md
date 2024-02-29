@@ -13,25 +13,35 @@ It subscribes to topics and maintains a buffer of recent messages like a dash ca
 
 ```
 $ rosrun rosbag_snapshot snapshot -h
-Usage: snapshot [options] [topic1 topic2 ...]
+Usage: rosrun rosbag_snapshot snapshot [options] [topic1 topic2 ...]
 
 Buffer recent messages until triggered to write or trigger an already running instance.
 
 Options:
   -h [ --help ]                produce help message
   -t [ --trigger-write ]       Write buffer of selected topcis to a bag file
-  -p [ --pause ]               Stop buffering new messages until resumed or
+  -p [ --pause ]               Stop buffering new messages until resumed or 
                                write is triggered
-  -r [ --resume ]              Resume buffering new messages, writing over
+  -r [ --resume ]              Resume buffering new messages, writing over 
                                older messages as needed
-  -s [ --size ] arg (=-1)      Maximum memory per topic to use in buffering in
+  -a [ --all ]                 Record all topics
+  --use-start-time             Use the bag start time instead of the trigger 
+                               time for naming bag files. Default: false
+  --use-duration               Append the bag duration to the end of bag file 
+                               names. Default: false
+  --use-decimal-precision      Use decimal precision for seconds in the 
+                               timestamp portion of bag file names. Default: 
+                               false
+  -s [ --size ] arg (=-1)      Maximum memory per topic to use in buffering in 
                                MB. Default: no limit
-  -d [ --duration ] arg (=30)  Maximum difference between newest and oldest
-                               buffered message per topic in seconds. Default:
+  -c [ --count ] arg (=-1)     Maximum number of messages per topic to use when
+                               buffering. Default: no limit
+  -d [ --duration ] arg (=30)  Maximum difference between newest and oldest 
+                               buffered message per topic in seconds. Default: 
                                30
-  -o [ --output-prefix ] arg   When in trigger write mode, prepend PREFIX to
+  -o [ --output-prefix ] arg   When in trigger write mode, prepend PREFIX to 
                                name of writting bag file
-  -O [ --output-filename ] arg When in trigger write mode, exact name of
+  -O [ --output-filename ] arg When in trigger write mode, exact name of 
                                written bag file
   --topic arg                  Topic to buffer. If triggering write, write only
                                these topics instead of all buffered topics.
