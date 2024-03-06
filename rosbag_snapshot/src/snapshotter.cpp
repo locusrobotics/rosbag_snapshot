@@ -300,9 +300,36 @@ MessageQueue::range_t MessageQueue::rangeFromTimes(Time const& start, Time const
   return range_t(begin, end);
 }
 
-bool MessageQueue::isLatched()
+bool MessageQueue::isLatched() const
 {
   return !latest_latched.empty();
+}
+
+ros::Time MessageQueue::start(ros::Time& trigger_time) const
+{
+  if (queue_.empty())
+  {
+    return trigger_time;
+  }
+
+  ros::Time start = queue_.front().time;
+
+  if (isLatched()) {
+    // Latched topics can have timestamps before the duration limit that are modified to the start of the duration
+    // upon writing to a bag, so set the start to the beginning of the duration in these cases
+    if (trigger_time - start > options_.duration_limit_)
+    {
+      return trigger_time - options_.duration_limit_;
+    }
+    else
+    {
+      return start;
+    }
+  }
+  else
+  {
+    return start;
+  }
 }
 
 const int Snapshotter::QUEUE_SIZE = 10;
@@ -332,26 +359,52 @@ void Snapshotter::fixTopicOptions(SnapshotterTopicOptions& options)
     options.count_limit_ = options_.default_memory_limit_;
 }
 
-bool Snapshotter::postfixFilename(string& file)
+bool Snapshotter::postfixFilename(string& file, ros::Time& trigger_time)
 {
   size_t ind = file.rfind(".bag");
-  // If requested ends in .bag, this is literal name do not append date
+
+  // If requested ends in .bag, this is literal name do not append date 
   if (ind != string::npos && ind == file.size() - 4)
   {
     return true;
   }
+
   // Otherwise treat as prefix and append datetime and extension
-  file += timeAsStr() + ".bag";
+  file += timeAsStr(trigger_time) + ".bag";
   return true;
 }
 
-string Snapshotter::timeAsStr()
+string Snapshotter::timeAsStr(ros::Time& trigger_time)
 {
   std::stringstream msg;
-  const boost::posix_time::ptime now = boost::posix_time::second_clock::local_time();
-  boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S");
-  msg.imbue(std::locale(msg.getloc(), f));
-  msg << now;
+  const boost::posix_time::ptime buffer_start = start(trigger_time).toBoost();
+  const boost::posix_time::ptime buffer_end = trigger_time.toBoost();
+
+  if (options_.use_decimal_precision_)
+  {
+    boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S.%f");
+    msg.imbue(std::locale(msg.getloc(), f));
+  }
+  else
+  {
+    boost::posix_time::time_facet* const f = new boost::posix_time::time_facet("%Y-%m-%d-%H-%M-%S");
+    msg.imbue(std::locale(msg.getloc(), f));
+  }
+
+  if (options_.use_start_time_)
+  {
+    msg << buffer_start;
+  }
+  else{
+    msg << buffer_end;
+  }
+
+  if (options_.use_duration_)
+  {
+    boost::posix_time::time_duration duration = buffer_end - buffer_start;
+    msg << "_" << std::fixed << std::setprecision(3) << float(duration.total_milliseconds()) / 1000;
+  }
+
   return msg.str();
 }
 
@@ -391,10 +444,9 @@ void Snapshotter::subscribe(string const& topic, boost::shared_ptr<MessageQueue>
 
 bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, string const& topic,
                              rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
-                             rosbag_snapshot_msgs::TriggerSnapshot::Response& res)
+                             rosbag_snapshot_msgs::TriggerSnapshot::Response& res,
+                             ros::Time& trigger_time)
 {
-  ros::Time now = ros::Time::now();
-
   // acquire lock for this queue
   boost::mutex::scoped_lock l(message_queue.lock);
 
@@ -424,7 +476,7 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
 
     if (start.is_zero())
     {
-      start = now - message_queue.options_.duration_limit_;
+      start = trigger_time - message_queue.options_.duration_limit_;
     }
 
     std::vector<std::string> callers;
@@ -479,12 +531,8 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
 bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
                                    rosbag_snapshot_msgs::TriggerSnapshot::Response& res)
 {
-  if (!postfixFilename(req.filename))
-  {
-    res.success = false;
-    res.message = "invalid";
-    return true;
-  }
+  ros::Time trigger_time = ros::Time::now();
+  
   bool recording_prior;  // Store if we were recording prior to write to restore this state after write
   {
     boost::upgrade_lock<boost::upgrade_mutex> read_lock(state_lock_);
@@ -499,6 +547,13 @@ bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Reque
     if (recording_prior)
       pause();
     writing_ = true;
+  }
+
+  if (!postfixFilename(req.filename, trigger_time))
+  {
+    res.success = false;
+    res.message = "invalid";
+    return true;
   }
 
   // Ensure that state is updated when function exits, regardlesss of branch path / exception events
@@ -541,7 +596,7 @@ bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Reque
         continue;
       }
       MessageQueue& message_queue = *(*found).second;
-      if (!writeTopic(bag, message_queue, topic, req, res))
+      if (!writeTopic(bag, message_queue, topic, req, res, trigger_time))
         return true;
     }
   }
@@ -552,7 +607,7 @@ bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Reque
     {
       MessageQueue& message_queue = *(pair.second);
       std::string const& topic = pair.first;
-      if (!writeTopic(bag, message_queue, topic, req, res))
+      if (!writeTopic(bag, message_queue, topic, req, res, trigger_time))
         return true;
     }
   }
@@ -701,6 +756,23 @@ int Snapshotter::run()
   ros::MultiThreadedSpinner spinner(4);  // Use 4 threads
   spinner.spin();                        // spin() will not return until the node has been shutdown
   return 0;
+}
+
+ros::Time Snapshotter::start(ros::Time& trigger_time) const
+{
+  ros::Time oldest = trigger_time;
+
+  for (const auto& b : buffers_)
+  {
+    ros::Time start = b.second.get()->start(trigger_time);
+
+    if (start < oldest)
+    {
+      oldest = start;
+    }
+  }
+
+  return oldest;
 }
 
 SnapshotterClient::SnapshotterClient()

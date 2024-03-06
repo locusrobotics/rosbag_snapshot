@@ -101,6 +101,12 @@ struct ROSBAG_DECL SnapshotterOptions
   ros::Duration status_period_;
   // Flag if all topics should be recorded
   bool all_topics_;
+  // Flag to name bags with the bag start timestamp
+  bool use_start_time_;
+  // Flag to append the bag duration to bag names
+  bool use_duration_;
+  // Use decimal precision for the seconds portion of bag name timestamps
+  bool use_decimal_precision_;
 
   typedef std::map<std::string, SnapshotterTopicOptions> topics_t;
   // Provides list of topics to snapshot and their limit configurations
@@ -178,6 +184,8 @@ public:
   int64_t getMessageSize(SnapshotMessage const& msg) const;
   // Latest messages from each publisher on a latched topic
   std::map<std::string, SnapshotMessage> latest_latched;
+  // Returns the time of the oldest message in the queue, or trigger_time if size < 1
+  ros::Time start(ros::Time& trigger_time) const;
 
 private:
   // Internal push whitch does not obtain lock
@@ -192,7 +200,7 @@ private:
   // impossible.
   bool preparePush(int32_t size, ros::Time const& time, const std::string& callerid);
   // Returns true if queue contains latched messages, false if not or queue is empty. Does not obtain lock
-  bool isLatched();
+  bool isLatched() const;
   // Removes all messages from the specified callerid
   void removeCallerid(const std::string& callerid);
 };
@@ -233,9 +241,9 @@ private:
   // Replace individual topic limits with node defaults if they are flagged for it (see SnapshotterTopicOptions)
   void fixTopicOptions(SnapshotterTopicOptions& options);
   // If file is "prefix" mode (doesn't end in .bag), append current datetime and .bag to end
-  bool postfixFilename(std::string& file);
+  bool postfixFilename(std::string& file, ros::Time& trigger_time);
   /// Return current local datetime as a string such as 2018-05-22-14-28-51. Used to generate bag filenames
-  std::string timeAsStr();
+  std::string timeAsStr(ros::Time& trigger_time);
   // Clear the internal buffers of all topics. Used when resuming after a pause to avoid time gaps
   void clear();
   // Subscribe to one of the topics, setting up the callback to add to the respective queue
@@ -260,7 +268,10 @@ private:
   // If returns false, there was an error opening/writing the bag and an error message was written to res.message
   bool writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, std::string const& topic,
                   rosbag_snapshot_msgs::TriggerSnapshot::Request& req,
-                  rosbag_snapshot_msgs::TriggerSnapshot::Response& res);
+                  rosbag_snapshot_msgs::TriggerSnapshot::Response& res,
+                  ros::Time& trigger_time);
+  // Returns the time of the oldest message in the message buffers
+  ros::Time start(ros::Time& trigger_time) const;
 };
 
 // Configuration for SnapshotterClient
