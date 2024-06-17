@@ -16,6 +16,11 @@ Changelog for package rosbag_snapshot
 * RST-5409 Retain latched messages from each unique publisher (#2)
 * Contributors: Gary Servin, nleblanc-lr
 
+Forthcoming
+-----------
+* RST-9269 new bag naming options (#7)
+* Contributors: nleblanc-lr
+
 1.3.0 (2024-02-02)
 ------------------
 * 1.2.0
