@@ -52,6 +52,7 @@
 using std::string;
 using boost::shared_ptr;
 using ros::Time;
+using rosbag::compression::CompressionType;
 
 namespace rosbag_snapshot
 {
@@ -314,7 +315,8 @@ ros::Time MessageQueue::start(ros::Time& trigger_time) const
 
   ros::Time start = queue_.front().time;
 
-  if (isLatched()) {
+  if (isLatched())
+  {
     // Latched topics can have timestamps before the duration limit that are modified to the start of the duration
     // upon writing to a bag, so set the start to the beginning of the duration in these cases
     if (trigger_time - start > options_.duration_limit_)
@@ -363,7 +365,7 @@ bool Snapshotter::postfixFilename(string& file, ros::Time& trigger_time)
 {
   size_t ind = file.rfind(".bag");
 
-  // If requested ends in .bag, this is literal name do not append date 
+  // If requested ends in .bag, this is literal name do not append date
   if (ind != string::npos && ind == file.size() - 4)
   {
     return true;
@@ -395,7 +397,8 @@ string Snapshotter::timeAsStr(ros::Time& trigger_time)
   {
     msg << buffer_start;
   }
-  else{
+  else
+  {
     msg << buffer_end;
   }
 
@@ -532,7 +535,7 @@ bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Reque
                                    rosbag_snapshot_msgs::TriggerSnapshot::Response& res)
 {
   ros::Time trigger_time = ros::Time::now();
-  
+
   bool recording_prior;  // Store if we were recording prior to write to restore this state after write
   {
     boost::upgrade_lock<boost::upgrade_mutex> read_lock(state_lock_);
@@ -570,6 +573,7 @@ bool Snapshotter::triggerSnapshotCb(rosbag_snapshot_msgs::TriggerSnapshot::Reque
 
   // Create bag
   rosbag::Bag bag;
+  bag.setCompression(CompressionType::LZ4);
 
   // Write each selected topic's queue to bag file
   if (req.topics.size() && req.topics.at(0).size())
