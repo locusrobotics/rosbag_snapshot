@@ -70,7 +70,10 @@ bool parseOptions(po::variables_map& vm, int argc, char** argv)
     ("all,a", "Record all topics")
     ("use-start-time", "Use the bag start time instead of the trigger time for naming bag files. Default: false")
     ("use-duration", "Append the bag duration to the end of bag file names. Default: false")
-    ("use-decimal-precision", "Use decimal precision for seconds in the timestamp portion of bag file names. Default: false")
+    (
+      "use-decimal-precision",
+      "Use decimal precision for seconds in the timestamp portion of bag file names. Default: false"
+    )
     ("size,s", po::value<double>()->default_value(-1),
      "Maximum memory per topic to use in buffering in MB. Default: no limit")
     ("count,c", po::value<int32_t>()->default_value(-1),
