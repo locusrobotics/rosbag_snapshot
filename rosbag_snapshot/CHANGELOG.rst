@@ -16,8 +16,8 @@ Changelog for package rosbag_snapshot
 * RST-5409 Retain latched messages from each unique publisher (#2)
 * Contributors: Gary Servin, nleblanc-lr
 
-Forthcoming
------------
+1.4.1 (2024-07-25)
+------------------
 * Use lz4 compression. Fixed some lint errors (#8)
 * Contributors: nleblanc-lr
 
