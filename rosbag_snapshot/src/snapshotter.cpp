@@ -430,7 +430,7 @@ void Snapshotter::topicCB(const ros::MessageEvent<topic_tools::ShapeShifter cons
 
 void Snapshotter::subscribe(string const& topic, boost::shared_ptr<MessageQueue> queue)
 {
-  ROS_INFO("Subscribing to %s", topic.c_str());
+  ROS_DEBUG("Subscribing to %s", topic.c_str());
 
   shared_ptr<ros::Subscriber> sub(boost::make_shared<ros::Subscriber>());
   ros::SubscribeOptions ops;
@@ -468,7 +468,7 @@ bool Snapshotter::writeTopic(rosbag::Bag& bag, MessageQueue& message_queue, stri
       res.message = string("failed to open bag: ") + err.what();
       return false;
     }
-    ROS_INFO("Writing snapshot to %s", req.filename.c_str());
+    ROS_DEBUG("Writing snapshot to %s", req.filename.c_str());
   }
 
   // write queue
@@ -638,7 +638,7 @@ void Snapshotter::clear()
 
 void Snapshotter::pause()
 {
-  ROS_INFO("Buffering paused");
+  ROS_DEBUG("Buffering paused");
   recording_ = false;
 }
 
@@ -646,7 +646,7 @@ void Snapshotter::resume()
 {
   clear();
   recording_ = true;
-  ROS_INFO("Buffering resumed and old data cleared.");
+  ROS_DEBUG("Buffering resumed and old data cleared.");
 }
 
 bool Snapshotter::enableCB(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res)
