@@ -11,6 +11,9 @@ Changelog for package rosbag_snapshot_msgs
 * Update changelogs
 * Contributors: Gary Servin
 
+Forthcoming
+-----------
+
 1.8.0 (2025-09-30)
 ------------------
 

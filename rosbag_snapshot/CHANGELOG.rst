@@ -16,6 +16,11 @@ Changelog for package rosbag_snapshot
 * RST-5409 Retain latched messages from each unique publisher (#2)
 * Contributors: Gary Servin, nleblanc-lr
 
+Forthcoming
+-----------
+* [RST-14186] reduce logs to debug (#9)
+* Contributors: anhillman
+
 1.8.0 (2025-09-30)
 ------------------
 
